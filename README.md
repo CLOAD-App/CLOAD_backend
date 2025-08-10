@@ -9,8 +9,6 @@ App & Game Hosting: Developers can fully host DApps, game clients, and software 
 
 On-Chain Transactions & Settlement: Enables secure, transparent purchases of in-game items and digital assets directly on-chain.
 
-SNS Governance Integration: Supports integration with the Service Nervous System (SNS) for decentralized governance and voting.
-
 High-Performance Interaction: Executes all logic inside a single Canister to eliminate cross-contract latency and improve responsiveness.
 
 As a fully on-chain decentralized backend, CLOAD_backend ensures performance, security, transparency, and sustainability, providing developers and users with the foundational Web3 infrastructure to truly own their data and revenue.
