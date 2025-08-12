@@ -1,0 +1,146 @@
+{
+  "cload_backend": {
+    "ic": "yffxi-vqaaa-aaaak-qcrnq-cai"
+  },
+  "cload_frontend": {
+    "ic": "ycer4-yiaaa-aaaak-qcrna-cai"
+  },
+  "content_canister": {
+    "ic": "lyr3s-lqaaa-aaaak-qugvq-cai"
+  },
+  "cryptoDisk_canister": {
+    "ic": "ecvgk-vqaaa-aaaak-quhrq-cai"
+  },
+  "cycles_canister": {
+    "ic": "j6jj7-caaaa-aaaak-qugyq-cai"
+  },
+  "fileCanister": {
+    "ic": "uxnnd-rqaaa-aaaag-ace5a-cai"
+  },
+  "fileCanister10": {
+    "ic": "g63fc-2iaaa-aaaap-qb5na-cai"
+  },
+  "fileCanister11": {
+    "ic": "o5sb7-liaaa-aaaak-qczfq-cai"
+  },
+  "fileCanister12": {
+    "ic": "g2us3-2iaaa-aaaak-qcytq-cai"
+  },
+  "fileCanister13": {
+    "ic": "3qqsr-qiaaa-aaaak-afifa-cai"
+  },
+  "fileCanister14": {
+    "ic": "3kyd7-hqaaa-aaaap-abvua-cai"
+  },
+  "fileCanister15": {
+    "ic": "3nzfl-kiaaa-aaaap-abvuq-cai"
+  },
+  "fileCanister16": {
+    "ic": "fkhy5-giaaa-aaaak-qcy3q-cai"
+  },
+  "fileCanister17": {
+    "ic": "ehj4t-jaaaa-aaaak-qcy4a-cai"
+  },
+  "fileCanister18": {
+    "ic": "eai2h-eyaaa-aaaak-qcy4q-cai"
+  },
+  "fileCanister19": {
+    "ic": "ejlr3-sqaaa-aaaak-qcy5a-cai"
+  },
+  "fileCanister2": {
+    "ic": "4p5dy-miaaa-aaaam-ab2oa-cai"
+  },
+  "fileCanister20": {
+    "ic": "eokxp-7iaaa-aaaak-qcy5q-cai"
+  },
+  "fileCanister21": {
+    "ic": "siaw4-kaaaa-aaaap-qb6yq-cai"
+  },
+  "fileCanister22": {
+    "ic": "txmhs-uiaaa-aaaal-qdeeq-cai"
+  },
+  "fileCanister23": {
+    "ic": "virj5-kaaaa-aaaal-adomq-cai"
+  },
+  "fileCanister24": {
+    "ic": "jcnx3-maaaa-aaaap-abwva-cai"
+  },
+  "fileCanister25": {
+    "ic": "t6pmo-caaaa-aaaal-qdefa-cai"
+  },
+  "fileCanister26": {
+    "ic": "r6uyh-yqaaa-aaaam-ab43a-cai"
+  },
+  "fileCanister27": {
+    "ic": "qduyu-vyaaa-aaaak-qc3kq-cai"
+  },
+  "fileCanister28": {
+    "ic": "qkxti-dqaaa-aaaak-qc3la-cai"
+  },
+  "fileCanister29": {
+    "ic": "qzuhz-xyaaa-aaaan-qlr3q-cai"
+  },
+  "fileCanister3": {
+    "ic": "svxfy-yqaaa-aaaap-abuga-cai"
+  },
+  "fileCanister30": {
+    "ic": "euh6p-caaaa-aaaag-qc6fa-cai"
+  },
+  "fileCanister31": {
+    "ic": "67nfn-bqaaa-aaaak-qlqgq-cai"
+  },
+  "fileCanister32": {
+    "ic": "wpraf-gqaaa-aaaag-aci6a-cai"
+  },
+  "fileCanister33": {
+    "ic": "sbd5a-4iaaa-aaaap-qb6za-cai"
+  },
+  "fileCanister34": {
+    "ic": "egbjw-oqaaa-aaaag-qc6ga-cai"
+  },
+  "fileCanister35": {
+    "ic": "rzv6t-viaaa-aaaam-ab43q-cai"
+  },
+  "fileCanister36": {
+    "ic": "fjxno-daaaa-aaaak-afkkq-cai"
+  },
+  "fileCanister37": {
+    "ic": "sgc3u-rqaaa-aaaap-qb6zq-cai"
+  },
+  "fileCanister38": {
+    "ic": "ebapc-diaaa-aaaag-qc6gq-cai"
+  },
+  "fileCanister39": {
+    "ic": "jfmrp-byaaa-aaaap-abwvq-cai"
+  },
+  "fileCanister4": {
+    "ic": "3dl5t-uaaaa-aaaag-acfya-cai"
+  },
+  "fileCanister40": {
+    "ic": "faugs-viaaa-aaaak-afkla-cai"
+  },
+  "fileCanister5": {
+    "ic": "hpr35-caaaa-aaaap-qb5iq-cai"
+  },
+  "fileCanister6": {
+    "ic": "rxcyh-iaaaa-aaaap-abuna-cai"
+  },
+  "fileCanister7": {
+    "ic": "q6pid-uqaaa-aaaam-ab3aq-cai"
+  },
+  "fileCanister8": {
+    "ic": "rqd6t-fyaaa-aaaap-abunq-cai"
+  },
+  "fileCanister9": {
+    "ic": "k2t4j-ziaaa-aaaan-qlaea-cai"
+  },
+  "nft_canister": {
+    "ic": "24t7b-laaaa-aaaak-quf6q-cai"
+  },
+  "reward_canister": {
+    "ic": "pva7i-yqaaa-aaaak-qugpq-cai"
+  },
+  "saveCanister": {
+    "ic": "emmm6-kaaaa-aaaak-qlnwa-cai"
+  }
+}
