@@ -16,9 +16,9 @@ import Types "types";
 import Posts "posts";
 import Item "item";
 
-shared ({caller = owner}) actor class Canister() = this {
-  let ownerAdmin :Principal = Principal.fromText("");
-  let featureAdmin :Principal = Principal.fromText("");
+shared ({caller = owner}) persistent actor class Canister() = this {
+  transient let ownerAdmin :Principal = Principal.fromText("cfklm-6bmf5-bovci-hk76c-rue3p-axnze-w2tjc-vpfdk-wppgd-xj2yv-2qe");
+  transient let featureAdmin :Principal = Principal.fromText("uwvp7-5unl6-4dyas-6jbow-q4uqv-3g7i7-pyigh-qabzl-vixut-mbsiu-kqe");
 
   public type MessageType = {
     #Text;
@@ -27,32 +27,36 @@ shared ({caller = owner}) actor class Canister() = this {
   };
 
   public type Message = {
-    messageID: Text;        // Unique message ID (can be a hash)
-    from: Principal;        // Sender
-    to: Principal;          // Receiver
-    content: Text;          // Message content (plain text/link)
+    messageID: Text;        // 消息唯一 ID
+    from: Principal;        // 发送者
+    to: Principal;          // 接收者
+    content: Text;          // 消息内容
     messageType: MessageType;
-    timestamp: Int;         // Nanosecond timestamp
-    isRead: Bool;           // Whether the message has been read
+    timestamp: Int;         // 纳秒时间戳
+    isRead: Bool;           // 是否已读
 };
 
-  // Feature storage information
-  private stable var featureToData_s: [(Text, Types.Feature)] = [];
-  private let featureToData = HashMap.fromIter<Text, Types.Feature>(featureToData_s.vals(), 0, Text.equal, Text.hash);
 
-  // Post information
-  private stable var postsToData_sV2: [(Text, Posts.Posts)] = [];
-  private let postsToDataV2 = HashMap.fromIter<Text, Posts.Posts>(postsToData_sV2.vals(), 0, Text.equal, Text.hash);
+  // 专栏储存信息
+  private var featureToData_s: [(Text, Types.Feature)] = [];
+  private transient let featureToData = HashMap.fromIter<Text, Types.Feature>(featureToData_s.vals(), 0, Text.equal, Text.hash);
 
-  // User rating comments
-  private stable var ratingToData_s: [(Text, Types.Rating)] = [];
-  private let ratingToData = HashMap.fromIter<Text, Types.Rating>(ratingToData_s.vals(), 0, Text.equal, Text.hash);
-  // User favorite items
-  private stable var favoritesToData_s: [(Principal, Types.Favorites)] = [];
-  private let favoritesToData = HashMap.fromIter<Principal, Types.Favorites>(favoritesToData_s.vals(), 0, Principal.equal, Principal.hash);
-  // All chat records
-  private stable var chatStore_s: [(Text, [Message])] = [];
-  private let chatStore = HashMap.fromIter<Text, [Message]>(chatStore_s.vals(), 0, Text.equal, Text.hash);
+  // 动态信息
+  private var postsToData_sV2: [(Text, Posts.Posts)] = [];
+  private transient let postsToDataV2 = HashMap.fromIter<Text, Posts.Posts>(postsToData_sV2.vals(), 0, Text.equal, Text.hash);
+
+  // 用户评论评分
+  private var ratingToData_s: [(Text, Types.Rating)] = [];
+  private transient let ratingToData = HashMap.fromIter<Text, Types.Rating>(ratingToData_s.vals(), 0, Text.equal, Text.hash);
+  
+  // 用户项目收藏信息
+  private var favoritesToData_s: [(Principal, Types.Favorites)] = [];
+  private transient let favoritesToData = HashMap.fromIter<Principal, Types.Favorites>(favoritesToData_s.vals(), 0, Principal.equal, Principal.hash);
+
+  // 所有聊天记录
+  private var chatStore_s: [(Text, [Message])] = [];
+  private transient let chatStore = HashMap.fromIter<Text, [Message]>(chatStore_s.vals(), 0, Text.equal, Text.hash);
+
 
   system func preupgrade() {
     ratingToData_s := Iter.toArray(ratingToData.entries());
@@ -77,33 +81,35 @@ shared ({caller = owner}) actor class Canister() = this {
       getUserBasic : query ({ caller:Principal }) -> async (?Types.UserBasic);
       getUserIDList : query ({userList: [Principal]}) -> async ([Types.UserBasic]);
   };
-  let center:CenterCanister = actor("yffxi-vqaaa-aaaak-qcrnq-cai");
+  transient let center:CenterCanister = actor("yffxi-vqaaa-aaaak-qcrnq-cai");
 
-  // Synchronization
+  //同步
   public type SaveCanister = actor {
       saveFavoritesToSave : shared ({date:Text;dataList:[(Principal, Types.Favorites)]}) -> async ();
       saveRatingToSave : shared ({date:Text;dataList:[(Text, Types.Rating)]}) -> async ();
       saveFeatureToSave : shared ({date:Text;dataList:[(Text, Types.Feature)]}) -> async ();
       savePostsToSave : shared ({date:Text;dataList:[(Text, Posts.Posts)]}) -> async ();
   };
-   let SaveCanister : SaveCanister = actor("emmm6-kaaaa-aaaak-qlnwa-cai");
+   transient let SaveCanister : SaveCanister = actor("emmm6-kaaaa-aaaak-qlnwa-cai");
+
 
   public query func getCycleBalance() : async Nat {
       Cycles.balance();
   };
 
-   // Function to receive cycles
+   // 接收cycles的函数
   public func wallet_receive() : async { accepted: Nat } {
     let available = Cycles.available();
     let accepted = Cycles.accept<system>(available);
     return { accepted = accepted };
   };
 
+  
   /*
-  * Private Chat
+  * 私聊
   */
 
-  // Private chat session identifier
+  //私聊会话标识
   func generateChatID(userA: Principal, userB: Principal): Text {
     if (Principal.toText(userA) < Principal.toText(userB)) {
       return Principal.toText(userA) # "_" # Principal.toText(userB);
@@ -125,8 +131,9 @@ shared ({caller = owner}) actor class Canister() = this {
     Array.find<Principal>(arr, func(x) { Principal.equal(x, target) }) != null
   };
 
-  // Send message
+  //发送消息
   public shared({ caller }) func sendMessage({ to: Principal; content: Text; messageType: MessageType }) : async Bool {
+    if (Text.size(content) > 4096) return false;
     let now = Time.now();
     let messageID = debug_show(now) # Principal.toText(caller);
     let chatID = generateChatID(caller, to);
@@ -149,7 +156,7 @@ shared ({caller = owner}) actor class Canister() = this {
     true
   };
 
-  // Get chat messages
+  //获取聊天记录
   public query({ caller }) func getChatMessages({  userB: Principal; page: Nat; pageSize: Nat }) : async [Message] {
     let chatID = generateChatID(caller, userB);
     switch (chatStore.get(chatID)) {
@@ -163,7 +170,7 @@ shared ({caller = owner}) actor class Canister() = this {
     }
   };
 
-  // Mark as read
+  //标记为已读
   public shared({ caller }) func markMessagesAsRead({ withUser: Principal }) : async Bool {
     let chatID = generateChatID(caller, withUser);
 
@@ -182,13 +189,13 @@ shared ({caller = owner}) actor class Canister() = this {
   };
 
   public type ChatPreview = {
-    chatWith: Types.UserBasic;       // Other user
-    lastMessage: Text;         // Last message
-    lastTime: Int;             // Timestamp
-    isUnread: Bool;            // Whether there are unread messages
+    chatWith: Types.UserBasic;       // 对方用户
+    lastMessage: Text;         // 最后一条消息
+    lastTime: Int;             // 时间戳
+    isUnread: Bool;            // 是否有未读
   };
 
-  // Query chat list
+  //查询聊天列表
   public composite query({ caller }) func getChatList() : async [ChatPreview] {
     var result = Buffer.Buffer<ChatPreview>(0);
     var chatWithList = Buffer.Buffer<Principal>(0);
@@ -198,18 +205,18 @@ shared ({caller = owner}) actor class Canister() = this {
       isUnread: Bool;
     }>([].vals(), 0, Principal.equal, Principal.hash);
 
-    // Step 1: Iterate through all sessions to collect the other user's Principal
+    // Step 1: 先遍历所有会话，收集与之对话的对方 Principal
     for ((chatID, messages) in chatStore.entries()) {
       if (Text.contains(chatID, #text (Principal.toText(caller)))) {
         if (messages.size() > 0) {
           let last = messages[messages.size() - 1];
 
           if (Principal.equal(last.from, caller) and Principal.equal(last.to, caller)) {
-            // Skip self-talk
+            // 跳过自言自语
           } else {
             let other = if (Principal.equal(last.from, caller)) last.to else last.from;
 
-            // Check if the user has already been processed (to avoid duplicates)
+            // 是否已经处理过该用户（避免重复添加）
             if (not arrayContains(Buffer.toArray(chatWithList), other)) {
               chatWithList.add(other);
 
@@ -228,10 +235,10 @@ shared ({caller = owner}) actor class Canister() = this {
       }
     };
 
-    // Step 2: Get batch user information
+    // Step 2: 获取批量用户信息
     let userInfos = await center.getUserIDList({ userList = Buffer.toArray(chatWithList) });
 
-    // Step 3: Construct complete ChatPreview
+    // Step 3: 拼接完整的 ChatPreview
     for (user in userInfos.vals()) {
       switch (chatMap.get(user.userID)) {
         case (?info) {
@@ -248,82 +255,83 @@ shared ({caller = owner}) actor class Canister() = this {
     Buffer.toArray(result);
   };
 
+
   /*
-  * Features
+  * 专栏
   */
 
-  // Get feature item details
+  //获取专栏项目详情
   public composite query func getFeature({featureID:Text}): async {feature:?Types.Feature;itemList:[Item.Items]} {
-    // Get the feature
+    //获取该专栏
     var itemList:[Item.Items] = [];
     var feature = switch (featureToData.get(featureID)) {
         case null null;
         case (?f) { 
-          // Get the complete item list
+          //获取完整的项目列表
            itemList := await center.getItemIDList({itemList=f.itemList});
-          // Return feature details
+          //返回项目专栏详情
           ?f;
          };
       };
       return {feature=feature;itemList=itemList};
   };
 
-  // Create or update feature (owner)
+  //创建专栏 owner
   public shared({ caller }) func createOrUpdateFeature({featureID:Text;title:Text;desc:Text;background:Text;coverImage:Text;itemList:[Text];location:Text;}):  () {
     assert(Principal.equal(caller,featureAdmin));
-    // Update feature - transfer feature
+        //更新专栏-转移专栏
         if(featureID==location){
           featureToData.put(featureID,{
-            featureID; // Feature ID
-            title;// Feature title
-            desc;// Feature description
-            background;// Feature background
-            coverImage;// Cover image
-            itemList// Item collection
+            featureID; // 专栏ID
+            title;//专栏标题
+            desc;//专栏描述
+            background;//专栏背景
+            coverImage;//封面图片
+            itemList//项目合集
           })
         }else{
-          // Get the historical homepage feature content
+          //获取历史首页位置的专栏内容
          switch (featureToData.get(location)) {
               case (null) {
-                // If the feature location is empty, transfer directly and delete the previous ID
+                //若专栏位置为空 则直接转移并删除之前ID
                 featureToData.put(location,{
-                  featureID=location; // Feature ID
-                  title;// Feature title
-                  desc;// Feature description
-                  background;// Feature background
-                  coverImage;// Cover image
-                  itemList// Item collection
+                  featureID=location; // 专栏ID
+                  title;//专栏标题
+                  desc;//专栏描述
+                  background;//专栏背景
+                  coverImage;//封面图片
+                  itemList//项目合集
                 });
                 featureToData.delete(featureID);
               }; 
               case (?f) {
-              // Swap the display location with the current feature content
+              //将展示位置与当前feature对象内容互换
               featureToData.put(featureID,{
-                featureID; // Feature ID
-                title=f.title;// Feature title
-                desc=f.desc;// Feature description
-                background=f.background;// Feature background
-                coverImage=f.coverImage;// Cover image
-                itemList=f.itemList// Item collection
+                featureID; // 专栏ID
+                title=f.title;//专栏标题
+                desc=f.desc;//专栏描述
+                background=f.background;//专栏背景
+                coverImage=f.coverImage;//封面图片
+                itemList=f.itemList//项目合集
               });
               featureToData.put(location,{
-                featureID=location; // Feature ID
-                title;// Feature title
-                desc;// Feature description
-                background;// Feature background
-                coverImage;// Cover image
-                itemList// Item collection
+                featureID=location; // 专栏ID
+                title;//专栏标题
+                desc;//专栏描述
+                background;//专栏背景
+                coverImage;//封面图片
+                itemList//项目合集
               })
               }
           };
     };
   };
 
-  // Delete feature
+  //删除专栏
   public shared({ caller }) func removeFeature({featureID:Text}): () {
-    assert(Principal.equal(caller,ownerAdmin));
+    assert(Principal.equal(caller,featureAdmin));
 
-    // Check if there is permission to delete
+    //判断是否有删除权限
     switch (featureToData.get(featureID)) {
       case null {};
       case (_) {            
@@ -332,13 +340,13 @@ shared ({caller = owner}) actor class Canister() = this {
     };
   };
 
-  // Get feature list
+  //获取专栏列表
   public query func getFeatureList({page:Nat;pageSize:Nat}): async {
       listSize:Nat;
       dataList:[(Text, Types.Feature)];
       dataPage:Nat;
   } {
-    // Get feature tuple
+    //获取专栏元组
     var list = Iter.toArray(featureToData.entries());
 
     let (pagedItems, total) = Types.paginate(list, page, pageSize);
@@ -349,46 +357,52 @@ shared ({caller = owner}) actor class Canister() = this {
     }
   };
 
-    /*
-  * Post Publishing
+  /*
+  * 发布动态
   */
 
-  // Create post
-  public shared({ caller }) func createPosts({postsID:Text;content: Text;mediaContent: Text;mediaType: Posts.MediaType; parentTweetId: Text}): () {
+  //发布动态
+  public shared({ caller }) func createPosts({content: Text;mediaContent: Text;mediaType: Posts.MediaType; parentTweetId: Text}): () {
     assert(Principal.isAnonymous(caller)==false);
-    // Get user details
-    switch (await center.getUserBasic({ caller = caller })) {
-        case null {};
-        case (?u) { 
-            Posts.setPosts(postsToDataV2,postsID,u,content,[],mediaContent,mediaType,[],parentTweetId);
-            // If it is a reply message, update the parent reply list ID
-            if(parentTweetId!=""){
-                // Get parent details and update reply list
-                switch (postsToDataV2.get(parentTweetId)) { 
-                  case (null) {}; 
-                  case (?p) {
-                    // Bind the newly posted content to the parent ID list
-                    let replies = Array.append<Text>(p.replies,[postsID]);
-                    Posts.updateReplies(postsToDataV2,p.postsID,replies);
-                  }; 
-                };
-            }
+    let postsID = await Types.genRandomSha256Id();
+    switch (postsToDataV2.get(postsID)) {
+      case null {
+      //获取用户详情
+      switch (await center.getUserBasic({ caller })) {
+          case null {};
+          case (?u) { 
+              Posts.setPosts(postsToDataV2,postsID,u,content,[],mediaContent,mediaType,[],parentTweetId);
+              //若为回复消息 则更新父级回复列表ID
+              if(parentTweetId!=""){
+                  //获取父级详情 更新回复列表
+                  switch (postsToDataV2.get(parentTweetId)) { 
+                    case (null) {}; 
+                    case (?p) {
+                      //将新发布的动态绑定至父级ID列表
+                      let replies = Array.append<Text>(p.replies,[postsID]);
+                      Posts.updateReplies(postsToDataV2,p.postsID,replies);
+                    }; 
+                  };
+              }
           };
       };
+      };
+      case (_) {};
+    };
   };
 
-  // Get post details
+  // 获取动态详情
   public shared func getPosts({postsID:Text}):async ?Posts.Posts {
-    // Get user details
+    //获取用户详情
     switch (postsToDataV2.get(postsID)) {
         case null null;
         case (?p) {?p};
       };
   };
 
-  // Get post list
+  // 获取动态列表 
   public composite query func getPostsList({pageSize:Nat}): async [(?Item.Items,Posts.Posts)] {
-    // Sort posts
+    //排序项目
     var postList = Array.sort(Iter.toArray(postsToDataV2.entries()), func (a1 : (Text, Posts.Posts), a2 :(Text, Posts.Posts)) : Order.Order {
       if (a1.1.createTime < a2.1.createTime) {
         return #greater;
@@ -399,7 +413,7 @@ shared ({caller = owner}) actor class Canister() = this {
       }
     });
 
-    // Split ItemID
+    //拆分ItemID  
     var itemIDList = Buffer.Buffer<Text>(0);
     var postsList = Buffer.Buffer<Posts.Posts>(0);
 
@@ -412,10 +426,10 @@ shared ({caller = owner}) actor class Canister() = this {
         }
       };
     };
-    // Get item list
+    //获取项目列表
     var itemList :[Item.Items]= await center.getItemIDList({itemList=Buffer.toArray(itemIDList)});
 
-    // Get post tuple
+    //获取动态元组
     var list = Buffer.Buffer<(?Item.Items,Posts.Posts)>(0);
 
     for(post in postsList.vals()){
@@ -426,11 +440,12 @@ shared ({caller = owner}) actor class Canister() = this {
     Buffer.toArray(list);
   };
 
-  // Get reply list
+
+  // 获取回复列表
   public query func getRepliesList({postsID:Text;pageSize:Nat}): async [Posts.Posts] {
-    // Get post tuple
+    //获取动态元组
     var list = Buffer.Buffer<Posts.Posts>(0);
-    // Get parent details and update reply list
+    //获取父级详情 更新回复列表
     switch (postsToDataV2.get(postsID)) { 
       case (null) {}; 
       case (?p) {
@@ -450,7 +465,7 @@ shared ({caller = owner}) actor class Canister() = this {
       }; 
     };
 
-    // Sort list, newer replies first
+    //排序列表 新回复在前
     Array.sort(Buffer.toArray(list), func (a1 : Posts.Posts, a2 :Posts.Posts) : Order.Order {
         if (a1.createTime < a2.createTime) {
           return #greater;
@@ -461,12 +476,13 @@ shared ({caller = owner}) actor class Canister() = this {
         }
     });
   };
+  
 
-  // Like or unlike post
+  //点赞 or 取消点赞
   public shared({ caller }) func updatePostsLikes({postsID:Text}): async () {
     assert(Principal.isAnonymous(caller)==false);
 
-    // Check if the user has already liked the post
+    //前置条件判断该用户是否点赞
     switch (postsToDataV2.get(postsID)) { 
       case (null) {}; 
       case (?p) {
@@ -480,9 +496,9 @@ shared ({caller = owner}) actor class Canister() = this {
     };
   };
 
-  // Delete post
+  //删除
   public shared({ caller }) func removePosts({postsID:Text}): async () {
-    // Check if the post belongs to the user
+    //前置条件判断评论用户是否是该用户
     switch (postsToDataV2.get(postsID)) { 
       case (null) {}; 
       case (?p) {
@@ -493,9 +509,9 @@ shared ({caller = owner}) actor class Canister() = this {
     };
   };
 
-  // Get post list by user ID
+  //通过用户ID获取动态列表
   public composite query func getUserPostsList({caller:Principal;pageSize:Nat}): async [(?Item.Items,Posts.Posts)] {
-    // Split ItemID
+    //拆分ItemID  
     var itemIDList = Buffer.Buffer<Text>(0);
     var postsList = Buffer.Buffer<Posts.Posts>(0);
 
@@ -508,10 +524,10 @@ shared ({caller = owner}) actor class Canister() = this {
         }
       };
     };
-    // Get item list
+    //获取项目列表
     var itemList :[Item.Items]= await center.getItemIDList({itemList=Buffer.toArray(itemIDList)});
 
-    // Get post tuple
+    //获取动态元组
     var postList = Buffer.Buffer<(?Item.Items,Posts.Posts)>(0);
 
     for(post in postsList.vals()){
@@ -519,7 +535,7 @@ shared ({caller = owner}) actor class Canister() = this {
       postList.add((item ,post));
     };
 
-    // Sort list, newer posts first
+    //排序列表 新回复在前
     Array.sort(Buffer.toArray(postList), func (a1 : (?Item.Items,Posts.Posts), a2 :(?Item.Items,Posts.Posts)) : Order.Order {
         if (a1.1.createTime < a2.1.createTime) {
           return #greater;
@@ -531,7 +547,7 @@ shared ({caller = owner}) actor class Canister() = this {
     });
   };
 
-  // Get number of posts by user ID
+  //通过用户ID获取动态数
   public query({ caller }) func getUserPostSize(): async Int {
     var postSize = 0;
     for((id,posts) in Iter.toArray(postsToDataV2.entries()).vals()){
@@ -542,25 +558,26 @@ shared ({caller = owner}) actor class Canister() = this {
     postSize;
   };
 
+
   /*
-  * Rating Operations // Rating Comments
+  * 评分操作 //评分留言
   */
 
-  // Get item rating list
+  //获取项目评论列表
   public composite query func getItemRatingList({itemID:Text;pageSize:Nat}): async {
       listSize:Nat;
       dataList:[Types.RatingList];
   } {
-     // Get item list tuple
+     //获取项目列表元组
     var itemList = Buffer.Buffer<Types.RatingList>(0);
     var listSize = 0;
     switch (ratingToData.get(itemID)) {
       case null {};
       case (?r) { 
-          // Iterate and restructure items
+          //循环重组项目
          listSize := r.ratingList.size();
          label letters for((id,rating) in r.ratingList.vals()){
-            // Get user information
+            // 获取用户信息
             switch (await center.getUserBasic({ caller = id })) {
               case null {};
               case (?u) { 
@@ -573,71 +590,76 @@ shared ({caller = owner}) actor class Canister() = this {
           };
       };
     };
-    // Paginate
+    //分页
     {
       listSize = itemList.size();
       dataList = Buffer.toArray(itemList);
     }
   };
-
-  // Item rating
+  
+  //项目评分
   public shared({ caller }) func itemRating({itemID:Text;rating:Float;comment:Text}):  () {
-        assert(Principal.isAnonymous(caller)==false);
-    // Check if it is the first rating
+    assert(Principal.isAnonymous(caller)==false);
+    if (rating < 0.0 or rating > 5.0) return ();
+    if (Text.size(comment) > 2000) return ();
+
+    //判断是否是首次评分
     switch (ratingToData.get(itemID)) {
       case null {
         ratingToData.put(itemID,{
-          itemID = itemID; // Item ID
-          ratingList=// User rating list
+          itemID = itemID; // 项目ID
+          ratingList=// 用户评分列表
           [(caller,{ 
-            rating=rating; // Rating score
-            comment=comment; // Comment
+            rating=rating; // 评分分数
+            comment=comment; // 评论
             dislike=0;
             like=0;
-            time=Time.now(); // Rating time
+            time=Time.now(); // 评分时间
           })];
         });
 
-        // Update item rating
+        //更新项目评分
         await center.uploadItemRating({itemID;rating});
       };
       case (?r) {            
-        // Convert
+        //转换
         let hashRating = HashMap.fromIter<Principal, {rating:Float;comment:Text; dislike:Int;like:Int; time:Int;}>(r.ratingList.vals(), 0, Principal.equal, Principal.hash);
         hashRating.put(caller,{
-          rating=rating; // Rating score
-          comment=comment; // Comment
+          rating=rating; // 评分分数
+          comment=comment; // 评论
           dislike=0;
           like=0;
-          time=Time.now(); // Rating time
+          time=Time.now(); // 评分时间
         });
 
         ratingToData.put(itemID,{
-          itemID = itemID; // User ID
-          ratingList=Iter.toArray(hashRating.entries());// User comment list
+          itemID = itemID; // 用户ID
+          ratingList=Iter.toArray(hashRating.entries());// 用户评论列表
         });
 
         var count:Float = 0;
-        // Calculate average score
-        for((id,rating) in r.ratingList.vals()){
+        //计算平均分
+        for((rating) in hashRating.vals()){
           count:=count+rating.rating
         };
 
-        // Update item rating
+        //更新项目评分
         await center.uploadItemRating({itemID;rating=(count/Float.fromInt(r.ratingList.size()))});
       };
     };
-  };
 
-  // Check if the current item has been rated
+    
+  };
+  
+  //获取当前项目是否已评分
   public query({ caller }) func getItemIsRating({itemID: Text}): async (Bool) {
-    // Store my ratings
+    //储存我的收藏
     var follow = false;
-    // Get rating details
+    //获取收藏详情
     switch (ratingToData.get(itemID)) {
       case null {};
       case (?r) {            
-        // Convert
+        //转换
         let hashRating = HashMap.fromIter<Principal, {rating:Float;comment:Text; dislike:Int;like:Int; time:Int;}>(r.ratingList.vals(), 0, Principal.equal, Principal.hash);
         switch (hashRating.get(caller)) {
           case null {};
@@ -651,74 +673,135 @@ shared ({caller = owner}) actor class Canister() = this {
   };
 
     /*
-  * Collection Operations
+  * 收藏操作
   */
 
-  // Collect item
-  public shared({ caller }) func collection({authorID:Principal;itemID:Text}):  () {
-    assert(Principal.isAnonymous(caller)==false);
-    // Check if it is the first collection
+
+  //收藏项目
+  public shared({ caller }) func collection({ authorID : Principal; itemID : Text }) : () {
+    assert(Principal.isAnonymous(caller) == false);
+    if (Types.isLen20to32NoSymbol(itemID,20,32)) {
+      var isNew = false;
+
+      switch (favoritesToData.get(caller)) {
+        // 首次有该用户的收藏记录
+        case null {
+          isNew := true;
+          favoritesToData.put(
+            caller,
+            {
+              userID = caller;
+              favoritesList = [
+                (
+                  itemID,
+                  {
+                    userID = authorID;
+                    itemID = itemID;
+                    time = Time.now();
+                  }
+                )
+              ];
+            }
+          );
+        };
+
+        // 已有该用户的收藏记录
+        case (?f) {
+          let hashFavorites =
+            HashMap.fromIter<Text, { userID : Principal; itemID : Text; time : Int }>(
+              f.favoritesList.vals(),
+              0,
+              Text.equal,
+              Text.hash
+            );
+
+          // 只在不存在该 itemID 时视为“新收藏”
+          switch (hashFavorites.get(itemID)) {
+            case null {
+              isNew := true;
+              hashFavorites.put(
+                itemID,
+                {
+                  userID = authorID;
+                  itemID = itemID;
+                  time = Time.now();
+                }
+              );
+              favoritesToData.put(
+                caller,
+                {
+                  userID = caller;
+                  favoritesList = Iter.toArray(hashFavorites.entries());
+                }
+              );
+            };
+            case (?_) {
+              // 已经收藏过：不更新 favoritesToData（如需更新时间可在此单独更新，但仍不计数）
+            };
+          };
+        };
+      };
+
+      // 仅“首次收藏”才累加项目收藏数，避免短时间多次点击导致无限累加
+      if (isNew) {
+        await center.uploadItemFavorites({ itemID; favorite = 1 });
+      };
+    };
+  };
+
+
+  //取消收藏
+  public shared({ caller }) func cancelCollection({ itemID : Text }) : () {
+    // 获取收藏详情
     switch (favoritesToData.get(caller)) {
       case null {
-        favoritesToData.put(caller,{
-          userID = caller; // User ID
-          favoritesList=// User collection list
-          [(itemID,{ 
-            userID=authorID; // Author ID
-            itemID=itemID; // Item ID
-            time=Time.now(); // Collection time
-          })];
-        })
+        // 用户没有任何收藏：不做任何事，不扣减
+        ();
       };
-      case (?f) {            
-        // Convert
-        let hashFavorites = HashMap.fromIter<Text, {userID: Principal;itemID:Text;time:Int;}>(f.favoritesList.vals(), 0, Text.equal, Text.hash);
-        hashFavorites.put(itemID,{
-          userID=authorID; // Author ID
-          itemID=itemID; // Item ID
-          time=Time.now(); // Collection time
-        });
 
-        favoritesToData.put(caller,{
-          userID = caller; // User ID
-          favoritesList=Iter.toArray(hashFavorites.entries());// User collection list
-        })
-      };
-    };
-    // Update item favorites
-     await center.uploadItemFavorites({itemID;favorite=1});
-  };
+      case (?f) {
+        // 转换为 HashMap 以便删除
+        let hashFavorites =
+          HashMap.fromIter<Text, { userID : Principal; itemID : Text; time : Int }>(
+            f.favoritesList.vals(),
+            0,
+            Text.equal,
+            Text.hash
+          );
 
-  // Cancel collection
-  public shared({ caller }) func cancelCollection({itemID: Text}): () {
-    // Get collection details
-    switch (favoritesToData.get(caller)) {
-      case null {};
-      case (?f) {            
-        // Convert
-        let hashFavorites = HashMap.fromIter<Text, {userID: Principal;itemID:Text;time:Int;}>(f.favoritesList.vals(), 0, Text.equal, Text.hash);
-        hashFavorites.delete(itemID);
+        // 只有真的删掉了该项，才算“取消收藏成功”
+         let removed : Bool = switch (hashFavorites.remove(itemID)) {
+            case (?_) true;
+            case null false;
+          };
 
-        favoritesToData.put(caller,{
-          userID = caller; // User ID
-          favoritesList=Iter.toArray(hashFavorites.entries());// User collection list
-        });
+        if (removed) {
+          // 仅在发生变化时回写用户收藏列表
+          favoritesToData.put(
+            caller,
+            {
+              userID = caller;                         // 用户ID
+              favoritesList = Iter.toArray(hashFavorites.entries()); // 用户收藏列表
+            }
+          );
 
-        // Update item favorites
-        await center.uploadItemFavorites({itemID;favorite=-1});
+          // 仅“成功移除”才扣减，避免重复点击导致无限扣减
+          await center.uploadItemFavorites({ itemID; favorite = -1 });
+        };
       };
     };
   };
 
-  // Check if the current item is collected by me
+
+  //获取当前项目是否被我收藏
   public query({ caller }) func getCollection({itemID: Text}): async (Bool) {
-    // Store my collections
+    //储存我的收藏
     var follow = false;
-    // Get collection details
+    //获取收藏详情
     switch (favoritesToData.get(caller)) {
       case null {};
       case (?f) {            
-        // Convert
+        //转换
         let hashFavorites = HashMap.fromIter<Text, {userID: Principal;itemID:Text;time:Int;}>(f.favoritesList.vals(), 0, Text.equal, Text.hash);
         switch (hashFavorites.get(itemID)) {
           case null {};
@@ -731,14 +814,14 @@ shared ({caller = owner}) actor class Canister() = this {
    return follow;
   };
 
-  // Get user collection list
+  //获取用户收藏列表
   public composite query({ caller }) func getCollectionList({page:Nat;pageSize:Nat}): async {
       listSize:Nat;
       dataList:[Item.Items];
       dataPage:Nat;
   }  {
     var itemList:[Item.Items] = [];
-    // Get collection details
+    //获取收藏详情
     switch (favoritesToData.get(caller)) {
       case null {};
       case (?f) {
@@ -758,54 +841,56 @@ shared ({caller = owner}) actor class Canister() = this {
     }
   };
 
-  // Get user collection count
+  //获取用户收藏数
   public query({ caller }) func getCollectionSize(): async (Nat) {
     var itemList = 0;
-    // Get collection details
+    //获取收藏详情
     switch (favoritesToData.get(caller)) {
       case null {};
       case (?f) {            
-        // Convert
+        //转换
        itemList:= f.favoritesList.size();
+
       };
     };
-     // Paginate
+     //分页
     itemList
   };
 
-  // Backup data
+  //备份数据
   private func saveAllData(): async () {
     let date = Int.toText(Time.now() / Types.second);
-    // Backup favorites data
+    // 备份文件收藏数据
     await Types.backupData({data=Iter.toArray(favoritesToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Principal, Types.Favorites)]) : async () { await SaveCanister.saveFavoritesToSave({ date = d; dataList })}});
-    // Backup rating data
+    // 备份评分数据
     await Types.backupData({data=Iter.toArray(ratingToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Types.Rating)]) : async () { await SaveCanister.saveRatingToSave({ date = d; dataList })}});
-    // Backup feature data
+    // 备份合集数据
     await Types.backupData({data=Iter.toArray(featureToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Types.Feature)]) : async () { await SaveCanister.saveFeatureToSave({ date = d; dataList })}});
-    // Backup post data
+    // 备份动态数据
     await Types.backupData({data=Iter.toArray(postsToDataV2.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Posts.Posts)]) : async () { await SaveCanister.savePostsToSave({ date = d; dataList })}});
   };
 
   ignore Timer.recurringTimer<system>(#seconds 604800, saveAllData);
 
-  // Manually save data
+  //手动存储数据
   public shared({ caller }) func setSaveAllData({date:Text}): async () {
     assert(Principal.equal(caller,ownerAdmin));
-    // Backup favorites data
+    // 备份文件收藏数据
     await Types.backupData({data=Iter.toArray(favoritesToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Principal, Types.Favorites)]) : async () { await SaveCanister.saveFavoritesToSave({ date = d; dataList })}});
-    // Backup rating data
+    // 备份评分数据
     await Types.backupData({data=Iter.toArray(ratingToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Types.Rating)]) : async () { await SaveCanister.saveRatingToSave({ date = d; dataList })}});
-    // Backup feature data
+    // 备份合集数据
     await Types.backupData({data=Iter.toArray(featureToData.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Types.Feature)]) : async () { await SaveCanister.saveFeatureToSave({ date = d; dataList })}});
-    // Backup post data
+    // 备份动态数据
     await Types.backupData({data=Iter.toArray(postsToDataV2.entries());chunkSize=1000;date;
     saveFunc=func (d : Text, dataList : [(Text, Posts.Posts)]) : async () { await SaveCanister.savePostsToSave({ date = d; dataList })}});
   };
+
 }

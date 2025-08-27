@@ -6,50 +6,49 @@ import Time "mo:base/Time";
 import Array "mo:base/Array";
 import Principal "mo:base/Principal";
 import Types "types";
-import User "user";
+module {
 
-module { 
-
-  // Post
+  // Posts data
   public type Posts = {
-    postsID: Text; // Post ID
-    user: Types.UserBasic; // User information
-    content: Text; // Post content
-    likes: [Principal]; // Likes
-    mediaContent: Text; // Attached content
-    mediaType: MediaType; // Attached content type
-    createTime: Int; // Publish time
-    replies: [Text]; // Reply list
-    parentTweetId: Text; // Parent tweet ID
-    isActive: Bool;
+    postsID:Text; // Post ID
+    user:Types.UserBasic;// User info
+    content:Text;// Post content
+    likes:[Principal];// Likes
+    mediaContent:Text; // Additional content
+    mediaType:MediaType;// Additional content type
+    createTime:Int;// Publish time
+    replies:[Text];// Replies list
+    parentTweetId:Text;// Parent tweet ID
+    isActive:Bool;
   };
 
-  // Attached content type
+  // Additional content types
   public type MediaType = {
     #Image; // Image
-    #Item; // Item
+    #Item; // Project
     #Url; // Link
     #User; // User
+    #NFT; // NFT
     #Null; // None
   };
 
-  // Create post
+  // Publish a post
   public func setPosts(
-    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text, user: Types.UserBasic, content: Text, likes: [Principal], 
+    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text,user:Types.UserBasic, content: Text, likes:[Principal], 
     mediaContent: Text, mediaType: MediaType, replies: [Text], parentTweetId: Text
   ): () {
       // Check if the post already exists
-    switch (postsToData.get(postsID)) { 
+    switch (postsToData.get(postsID)) {
       case (null) {
         postsToData.put(postsID, {
             postsID; // Post ID
-            user; // User information
+            user; // User info
             content; // Post content
             likes; // Likes
-            mediaContent; // Attached content
-            mediaType; // Attached content type
-            createTime = Time.now(); // Publish time
-            replies; // Reply list
+            mediaContent; // Additional content
+            mediaType; // Additional content type
+            createTime=Time.now(); // Publish time
+            replies; // Replies list
             parentTweetId; // Parent tweet ID
             isActive = true;
         });
@@ -58,42 +57,44 @@ module {
     };  
   };
 
-  // Delete post
+  // Delete
   public func removePosts(
     postsToData: HashMap.HashMap<Text, Posts>, postsID: Text
-  ): () {
+  ):(){
      switch (postsToData.get(postsID)) { 
         case (null) {}; 
         case (?p) {
-          postsToData.put(postsID, {p with isActive = false});
-          // Get parent details and update reply list
-          switch (postsToData.get(p.parentTweetId)) { 
+          postsToData.put(postsID, {p with isActive=false});
+          // Fetch parent details and update replies
+          switch (postsToData.get(p.parentTweetId)) {
             case (null) {}; 
             case (?post) {
-              // Remove the ID from the parent's reply list
-              updateReplies(postsToData, post.postsID, Array.filter<Text>(post.replies, func x = x != p.postsID));
-            }; 
+              // Remove ID from parent's reply list
+              updateReplies(postsToData,post.postsID,Array.filter<Text>(post.replies, func x = x != p.postsID));
+            };
           };
         }; 
       };    
   };
 
-  // Update reply list
+
+  // Update replies list
   public func updateReplies(
-    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text, replies: [Text]
-  ): () {
+    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text,replies: [Text]
+  ):(){
      switch (postsToData.get(postsID)) { 
         case (null) {}; 
         case (?p) {
           postsToData.put(postsID, {p with replies});
-        }; 
-      };    
+        };
+      };
   };
 
-  // Update like information
+
+  // Update like info
   public func updatePostsLikes(
-    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text, likes: [Principal]
-  ): () {
+    postsToData: HashMap.HashMap<Text, Posts>, postsID: Text,likes: [Principal]
+  ):(){
      switch (postsToData.get(postsID)) { 
         case (null) {}; 
         case (?p) {
@@ -101,5 +102,7 @@ module {
         }; 
       };    
   };
+
+
 
 }

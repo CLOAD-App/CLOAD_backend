@@ -10,23 +10,22 @@ import Result "mo:base/Result";
 import Nat "mo:base/Nat";
 import Option "mo:base/Option";
 import Cycles "mo:base/ExperimentalCycles";
+import Timer "mo:base/Timer";
 
-import Item "item";
 import Types "types";
 
-shared ({caller = owner}) actor class Canister() = this {
-  
-  let ownerAdmin :Principal = Principal.fromText("");
-  let center :Principal = Principal.fromText("yffxi-vqaaa-aaaak-qcrnq-cai");
+shared ({caller = owner}) persistent actor class Canister() = this {
 
-  // Cycles record
-  private stable var cryptoDiskToData_s: [(Text, Types.CryptoDisk)] = [];
-  private let cryptoDiskToData = HashMap.fromIter<Text, Types.CryptoDisk>(cryptoDiskToData_s.vals(), 0, Text.equal, Text.hash);
+  transient let ownerAdmin :Principal = Principal.fromText("cfklm-6bmf5-bovci-hk76c-rue3p-axnze-w2tjc-vpfdk-wppgd-xj2yv-2qe");
+
+  // cryptoDisk records
+  private var cryptoDiskToData_s: [(Text, Types.CryptoDisk)] = [];
+  private transient let cryptoDiskToData = HashMap.fromIter<Text, Types.CryptoDisk>(cryptoDiskToData_s.vals(), 0, Text.equal, Text.hash);
 
   public type CenterCanister = actor {
       getCryptoDiskFile : query ({ fileID:Text }) -> async (?Types.FileStorage);
   };
-  let centerApi:CenterCanister = actor("yffxi-vqaaa-aaaak-qcrnq-cai");
+  transient let centerApi:CenterCanister = actor("yffxi-vqaaa-aaaak-qcrnq-cai");
 
   system func preupgrade() {
     cryptoDiskToData_s := Iter.toArray(cryptoDiskToData.entries());
@@ -35,6 +34,14 @@ shared ({caller = owner}) actor class Canister() = this {
   system func postupgrade() {
     cryptoDiskToData_s := [];
   };
+
+  // Synchronization
+  public type SaveCanister = actor {
+      saveCryptoDiskToSave : shared ({date:Text;dataList:[(Text, Types.CryptoDisk)]}) -> async ();
+  };
+
+  transient let SaveCanister : SaveCanister = actor("emmm6-kaaaa-aaaak-qlnwa-cai");
+
 
     
   public query func getCycleBalance() : async Nat {
@@ -48,15 +55,15 @@ shared ({caller = owner}) actor class Canister() = this {
     return { accepted = accepted };
   };
 
-    // Create sharing record
+    // Create share record
     public shared({ caller }) func updateFileVisibility({
         fileID: Text;
         isPublic: ?Bool;
         isShared: ?Bool;
-        sharedInfo: ?{ link: Text; expireTime: Int };
+        expireTime: ?Int;
     }) : async Result.Result<Text, Text> {
     let now = Time.now();
-        // Check if the record exists
+        // Check if record exists
         switch (cryptoDiskToData.get(fileID)) {
             case null {
                 // Get file information
@@ -65,6 +72,7 @@ shared ({caller = owner}) actor class Canister() = this {
                         return #err("File not found.");
                     };
                     case (?file) {
+                        let link = await Types.genRandomSha256Id();
                         // Verify file owner
                         assert(Principal.equal(file.userID, caller)); 
                         let newDisk: Types.CryptoDisk = {
@@ -73,11 +81,11 @@ shared ({caller = owner}) actor class Canister() = this {
                             creationTime = now;
                             isPublic = Option.get(isPublic, false);
                             isShared = Option.get(isShared, false);
-                            sharedInfo = Option.get(sharedInfo, { link = ""; expireTime = 0 });
+                            sharedInfo = { link ; expireTime = Option.get(expireTime, 0) };
                             isActive = true;
                         };
                         cryptoDiskToData.put(fileID, newDisk);
-                        return #ok("New file record created with visibility settings.");
+                        return #ok(link);
                     };
                 };
                 
@@ -91,11 +99,12 @@ shared ({caller = owner}) actor class Canister() = this {
                     disk with
                     isPublic = Option.get(isPublic, disk.isPublic);
                     isShared = Option.get(isShared, disk.isShared);
-                    sharedInfo = Option.get(sharedInfo, disk.sharedInfo);
+                    sharedInfo = { link = disk.sharedInfo.link; expireTime = Option.get(expireTime, disk.sharedInfo.expireTime) };
                 };
 
                 cryptoDiskToData.put(fileID, updatedDisk);
-                return #ok("Visibility updated successfully.");
+                return #ok(disk.sharedInfo.link);
+
             };
         };
     };
@@ -110,6 +119,7 @@ shared ({caller = owner}) actor class Canister() = this {
             };
         };
     };
+
 
     // Get file visibility record status
     public shared({ caller }) func getCryptoDiskStatus({fileID: Text}) : async (?Types.CryptoDisk) {
@@ -127,13 +137,13 @@ shared ({caller = owner}) actor class Canister() = this {
         // Get all files
         let allFiles = Iter.toArray(cryptoDiskToData.entries());
 
-        // Filter public files for the specified user
-        let publicFiles = Array.filter<(Text, Types.CryptoDisk)>(allFiles,func (entry) {
-            let f = entry.1;Principal.equal(f.userID, userID) and f.isActive and f.isPublic;
+        // Filter specified user's public files
+        let publicFiles = Array.filter<(Text, Types.CryptoDisk)>(allFiles,func ((id,entry)) {
+            let f = entry;Principal.equal(f.userID, userID) and f.isActive and f.isPublic;
             }
         );
 
-        // Sort (by creation time in descending order)
+        // Sort by update time descending
         Array.sort<(Text, Types.CryptoDisk)>(
             publicFiles,
             func (a, b) {
@@ -148,8 +158,8 @@ shared ({caller = owner}) actor class Canister() = this {
         );
     };
 
-    // Get file index by shared link
-    public composite query func getFileBySharedLink({ link: Text }) : async (?Item.Store) {
+    // Get file index via link
+    public composite query func getFileBySharedLink({ link: Text }) : async (?Types.FileStorage) {
         for ((_, disk) in cryptoDiskToData.entries()) {
             if (
                 disk.isShared and
@@ -157,7 +167,7 @@ shared ({caller = owner}) actor class Canister() = this {
                 Time.now() < disk.sharedInfo.expireTime and
                 disk.isActive
             ) {
-            // Get real file index information
+            // Fetch actual file index info
             let store = await centerApi.getCryptoDiskFile({ fileID = disk.file.fileID });
             return store;
             };
@@ -165,15 +175,15 @@ shared ({caller = owner}) actor class Canister() = this {
         return null; // Not found or expired
     };
 
-    // Get file index by public file
-    public composite query func getFileByPublic({ fileID: Text }) : async (?Item.Store) {
+    // Get file index via public file
+    public composite query func getFileByPublic({ fileID: Text }) : async (?Types.FileStorage) {
         switch (cryptoDiskToData.get(fileID)) {
             case null {
                 return null;
             };
             case (?disk) {
                 if (disk.isPublic and disk.isActive) {
-                    // Get real file index information
+                    // Fetch actual file index info
                     let store = await centerApi.getCryptoDiskFile({ fileID = disk.file.fileID });
                     return store;
                 } else {
@@ -182,4 +192,23 @@ shared ({caller = owner}) actor class Canister() = this {
             };
         };
     };
+
+
+      // Backup data
+  private func saveAllData(): async () {
+    let date = Int.toText(Time.now() / Types.second);
+
+    await Types.backupData({data=Iter.toArray(cryptoDiskToData.entries());chunkSize=1000;date;
+    saveFunc=func (d : Text, dataList : [(Text, Types.CryptoDisk)]) : async () { await SaveCanister.saveCryptoDiskToSave({ date = d; dataList })}});
+  };
+
+  ignore Timer.recurringTimer<system>(#seconds 604800, saveAllData);
+
+  // Manually store data
+  public shared({ caller }) func setSaveAllData({date:Text}): async () {
+    assert(Principal.equal(caller,ownerAdmin));
+
+    await Types.backupData({data=Iter.toArray(cryptoDiskToData.entries());chunkSize=1000;date;
+    saveFunc=func (d : Text, dataList : [(Text, Types.CryptoDisk)]) : async () { await SaveCanister.saveCryptoDiskToSave({ date = d; dataList })}});
+  };
 }

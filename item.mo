@@ -8,50 +8,50 @@ import Option "mo:base/Option";
 
 import Types "types";
 
+
   /*
-  * Item Related Operations
+  * Project related operations
   */
 
 module {
-
   public type Items = {
-    name: Text; // Item name
-    itemID: Text; // Item ID
+    name: Text; // Project name
+    itemID: Text; // Project ID
     userID: Principal; // Publisher ID
-    website: Text; // Website address
-    tags: [Text]; // Item tags
-    types: [Text]; // Item types
-    desc: Text; // Item description
+    website:Text; // Website
+    tags: [Text]; // Project tags
+    types:[Text]; // Project types
+    desc: Text; // Project description
     price: Nat; // Price
-    version: Text; // Version number
-    origin: Text; // Origin
+    version: Text; // Version
+    origin:Text; // Source
     logo: Text; // Logo image
     coverImage: Text; // Cover image
     contentImage: [Text]; // Content images
-    blockchain: Types.Blockchain; // Blockchain
+    blockchain:Types.Blockchain; // Blockchain
     exposure: Int; // Exposure
-    rating: Float; // Rating
+    rating:Float; // Rating
     downloads: Int; // Downloads
     favorites: Int; // Favorites
     earnings: Nat; // Earnings
     status: Types.Status; // Status
     currency: Types.Tokens; // Currency type
-    area: Types.Modules; // Area
-    creationTime: Int; // Creation time
-    upDataTime: Int; // Update time
-    verified: Bool; // Verified
-    isActive: Bool;
+    area:Types.Modules; // Area
+    creationTime:Int; // Creation time
+    upDataTime:Int; // Update time
+    verified:Bool; // Verified
+    isActive:Bool;
   };
 
   public type ItemBasic = {
-    name: Text; // Item name
-    itemID: Text; // Item ID
+    name: Text; // Project name
+    itemID: Text; // Project ID
     userID: Principal; // Publisher ID
     coverImage: Text; // Cover image
-    area: Text; // Area
+    area:Text; // Area
   };
 
-  // Create or update item information
+  // Create or update project information
   public func createOrUpdateItem(
     itemsToData: HashMap.HashMap<Text, Items>, itemID: Text,name: Text, userID: Principal, website: Text, tags: [Text],types: [Text],
     desc: Text, price: Nat, version: Text, logo: Text,coverImage: Text, contentImage: [Text],blockchain:Types.Blockchain, currency: Types.Tokens, area: Types.Modules
@@ -75,8 +75,8 @@ module {
       };    
   };
 
-  // Update item status
- public func updateItemStatus(
+  // Update project status
+  public func updateItemStatus(
     itemsToData: HashMap.HashMap<Text, Items>, itemID: Text,status: Types.Status
   ):(){
      switch (itemsToData.get(itemID)) { 
@@ -87,7 +87,7 @@ module {
       };    
   };
 
-  // Verify item
+  // Verify project
   public func updateItemVerified(
     itemsToData: HashMap.HashMap<Text, Items>, itemID: Text,verified: Bool
   ):(){
@@ -99,19 +99,8 @@ module {
       };    
   };
 
-  // Update item ownership
-  public func updateItemUser(
-    itemsToData: HashMap.HashMap<Text, Items>, itemID: Text,userID: Principal
-  ):(){
-     switch (itemsToData.get(itemID)) { 
-        case (null) {}; 
-        case (?i) {
-          itemsToData.put(itemID, { i with userID});
-        }; 
-      };    
-  };
 
-  // Update item downloads, favorites, earnings, or rating based on calculated results
+  // Update project downloads/favorites/earnings/rating after precondition checks
   public func updateItemDownloadsOrFavorites(itemsToData: HashMap.HashMap<Text, Items>, itemID: Text, downloads:?Int, favorites:?Int,earnings:?Nat,rating:?Float):(){
      switch (itemsToData.get(itemID)) { 
         case (null) {}; 
@@ -125,7 +114,7 @@ module {
       };    
   };
   
-  // Manage Item (ADMIN): Update item tags, origin, exposure, and active status
+  // Manage item: update tags, source, exposure and active status (admin)
   public func manageItem(itemsToData: HashMap.HashMap<Text, Items>, itemID: Text, tags:?[Text], origin: ?Text ,exposure: ?Int, isActive:?Bool):(){
      switch (itemsToData.get(itemID)) { 
         case (null) {}; 

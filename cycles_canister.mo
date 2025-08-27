@@ -11,14 +11,14 @@ import Order "mo:base/Order";
 
 import Types "types";
 
-shared ({caller = owner}) actor class Canister() = this {
+shared ({caller = owner}) persistent actor class Canister() = this {
   
-  let ownerAdmin :Principal = Principal.fromText("");
-  let center :Principal = Principal.fromText("yffxi-vqaaa-aaaak-qcrnq-cai");
+  transient let center :Principal = Principal.fromText("yffxi-vqaaa-aaaak-qcrnq-cai");
 
-  // Cycles record
-  private stable var cyclesToData_s: [(Principal, Types.CyclesRecord)] = [];
-  private let cyclesToData = HashMap.fromIter<Principal, Types.CyclesRecord>(cyclesToData_s.vals(), 0, Principal.equal, Principal.hash);
+  // Cycles records
+  private var cyclesToData_s: [(Principal, Types.CyclesRecord)] = [];
+  private transient let cyclesToData = HashMap.fromIter<Principal, Types.CyclesRecord>(cyclesToData_s.vals(), 0, Principal.equal, Principal.hash);
+
 
   system func preupgrade() {
     cyclesToData_s := Iter.toArray(cyclesToData.entries());
@@ -28,13 +28,15 @@ shared ({caller = owner}) actor class Canister() = this {
     cyclesToData_s := [];
   };
 
+
+
   /*
-  * Cycles Record Related
+  * Cycles record operations
   */
   
-  // Add or update Cycles record
+  // Add or update cycles record
   public shared({ caller }) func addCyclesRecord({ userID: Principal; amount: Int; operation: { #Add; #Sub }; memo: Text; balance: Int }) : async () {
-    assert(Principal.equal(caller, center)); // Core Canister call
+    assert(Principal.equal(caller, center)); // Called by core canister
     let now = Time.now();
 
     switch (cyclesToData.get(userID)) {
@@ -53,7 +55,7 @@ shared ({caller = owner}) actor class Canister() = this {
         cyclesToData.put(userID, newRecord);
       };
       case (?existingRecord) {
-        // Existing record, append new change
+        // Existing record, append new entry
         let lastBalance = switch (existingRecord.records.size()) {
           case (0) { 0 };
           case (_) { existingRecord.records[existingRecord.records.size() - 1].balance };
@@ -83,16 +85,17 @@ shared ({caller = owner}) actor class Canister() = this {
     };
   };
 
-  // Get user Cycles record list
+
+  // Get user cycles record list
   public query({ caller }) func getUserCyclesRecordList({ page: Nat; pageSize: Nat }) : async {
     listSize: Nat;
     dataList: [Types.CyclesRecordEntry];
     dataPage: Nat;
   } {
-    // Retrieve the user's Cycles records
+    // Retrieve cycles records for the user
     switch (cyclesToData.get(caller)) {
       case (null) {
-        // No records, return empty
+        // No record, return empty
         {
           listSize = 0;
           dataList = [];
@@ -100,7 +103,7 @@ shared ({caller = owner}) actor class Canister() = this {
         };
       };
       case (?r) {
-        // Sort by time in descending order (newest first)
+        // Sort by time descending (latest first)
         let sortedRecords = Array.sort<Types.CyclesRecordEntry>(
           r.records,
           func (a: Types.CyclesRecordEntry, b: Types.CyclesRecordEntry) : Order.Order {
@@ -113,7 +116,7 @@ shared ({caller = owner}) actor class Canister() = this {
             }
           }
         );
-        // Paginate
+        // Pagination
         let (pagedItems, total) = Types.paginate<Types.CyclesRecordEntry>(sortedRecords, page, pageSize);
         {
           listSize = total;
@@ -125,14 +128,15 @@ shared ({caller = owner}) actor class Canister() = this {
   };
 
   /*
-  * Cycles Control Related
+  * Cycles control
   */
 
   public query func getCycleBalance() : async Nat {
     Cycles.balance();
   };
 
-  // Check the cycles balance of a specified canister and top up if below threshold
+
+  // Check canister cycles balance and top up if below threshold
   public shared({caller}) func monitorAndTopUp({canisterId: Principal; threshold: Nat; topUpAmount: Nat}) : async { 
     status: Text; 
     transferred: Nat; 
@@ -140,25 +144,25 @@ shared ({caller = owner}) actor class Canister() = this {
   } {
     assert(Principal.equal(caller, center)); 
 
-    // Get the management interface of the target canister
+    // Get target canister management interface
     let targetCanister = actor(Principal.toText(canisterId)) : actor {
       getCycleBalance : shared () -> async Nat;
       wallet_receive : shared () -> async { accepted: Nat };
     };
     
-    // Check the cycles balance of the target canister
+    // Check target canister's cycles balance
     let targetBalance = await targetCanister.getCycleBalance();
     
-    // If the balance is below the threshold, top up cycles
+    // Top up cycles if balance below threshold
     if (targetBalance < threshold) {
       
-      // Add cycles to the next call
+      // Add cycles to next call
       Cycles.add<system>(topUpAmount);
       
-      // Call the target canister's receive function
+      // Call target canister's receive function
       let result = await targetCanister.wallet_receive();
       
-      // Get the amount of refunded cycles
+      // Get amount of cycles refunded
       let refundedAmount = Cycles.refunded();
       
       return {
@@ -175,33 +179,34 @@ shared ({caller = owner}) actor class Canister() = this {
     }
   };
 
-  // Check and top up the balance of multiple canisters
+  // Check and top up multiple canister balances
   public shared({caller}) func checkAndTopUpAllCanisters({list:[Principal]}) : async [(Principal, Nat, Nat)] {
     assert(Principal.equal(caller, center)); 
     let results = Buffer.Buffer<(Principal, Nat, Nat)>(0); 
     for (cid in list.vals()) {
       try {
-        // Get the management interface of the target canister
+        // Get target canister management interface
         let targetCanister = actor(Principal.toText(cid)) : actor {
           getCycleBalance : shared () -> async Nat;
           wallet_receive : shared () -> async { accepted: Nat };
         };
-        // Add cycles to the next call
+        // Add cycles to next call
         Cycles.add<system>(Types.cycles1T);
 
-        // Call the target canister's receive function
+        // Call target canister's receive function
         let result = await targetCanister.wallet_receive();
       
-        // Get the amount of refunded cycles
+        // Get amount of cycles refunded
         let refundedAmount = Cycles.refunded();
         results.add((cid, result.accepted, refundedAmount));
       } catch (_) {
-        // If a canister query fails, do not let the entire loop fail, record the error
+        // If a canister query fails, continue loop and record error
         results.add((cid, 0, 0));
       };
     };
 
     return Buffer.toArray(results);
   };
+
 
 }

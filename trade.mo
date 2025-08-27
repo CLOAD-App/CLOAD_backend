@@ -6,31 +6,31 @@ import Bool "mo:base/Bool";
 import Types "types";
 
   /*
-  * Transaction Related Operations
+  * Transaction operations
   */
 
 module {
 
     // Transaction record
     public type Transaction = {
-        transactionID: Text; // Transaction ID
-        userID: Principal; // User ID
-        authorID: Principal; // Project author ID
-        itemID: Text; // Project ID
+        transactionID:Text; // Transaction ID
+        userID:Principal; // User ID
+        authorID:Principal; // Project author ID
+        itemID:Text; // Project ID
         paymentAmount: Nat; // Payment amount
-        currency: Types.Tokens; // Currency type
-        creationTime: Int; // Creation time
-        isActive: Bool; 
+        currency:Types.Tokens; // Currency type
+        creationTime:Int; // Creation time
+        isActive:Bool;
     };
 
     // Create transaction record
     public func createTransaction(
-        tradeToData: HashMap.HashMap<Text, Transaction>, transactionID: Text,
-        userID: Principal, authorID: Principal, itemID: Text,
-        paymentAmount: Nat, currency: Types.Tokens): () {
-        switch (tradeToData.get(transactionID)) {
+        tradeToData:HashMap.HashMap<Text, Transaction>,transactionID:Text,
+        userID:Principal,authorID:Principal,itemID:Text,
+        paymentAmount: Nat,currency:Types.Tokens):(){
+        switch(tradeToData.get(transactionID)) {
             case (null) {
-                tradeToData.put(transactionID, {
+                tradeToData.put(transactionID,{
                 transactionID; // Transaction ID
                 userID; // User ID
                 authorID; // Author ID
@@ -42,58 +42,60 @@ module {
             });
             };
             case (_) {};
-        };
+      };
     };
 
-    // Update transaction status
-    public func setTradeIsActive(tradeToData: HashMap.HashMap<Text, Transaction>, transactionID: Text, isActive: Bool): () {
+    // Change transaction status
+    public func setTradeIsActive(tradeToData:HashMap.HashMap<Text, Transaction>,transactionID:Text,isActive:Bool):(){
         switch (tradeToData.get(transactionID)) { 
             case (null) {}; 
             case (?t) {
-                tradeToData.put(transactionID, {t with isActive;});
+                tradeToData.put(transactionID,{t with isActive;});
             }; 
         };    
     };
-    
+
+
     // Refund record
     public type Refunds = {
-        transactionID: Text; // Transaction ID
-        userID: Principal; // User ID
-        authorID: Principal; // Project author ID
-        refundAmount: Nat; // Refund amount
-        refundReason: Text; // Refund reason
-        rejectRefundReason: Text; // Reason for rejecting refund
-        refundTime: Int; // Refund time
-        refund: Types.Status; // Refund status
-        createTime: Int; // Creation time
-        isActive: Bool; 
+        transactionID:Text; // Transaction ID
+        userID:Principal; // User ID
+        authorID:Principal; // Project author ID
+        refundAmount:Nat; // Refund amount
+        refundReason:Text; // Refund reason
+        rejectRefundReason:Text; // Rejected refund reason
+        refundTime:Int; // Refund time
+        refund:Types.Status; // Refund status
+        createTime:Int; // Creation time
+        isActive:Bool;
     };
 
     // Create refund record
     public func createRefunds(
-        refundsToData: HashMap.HashMap<Text, Refunds>, transactionID: Text, userID: Principal, authorID: Principal,
-        refundAmount: Nat, refundReason: Text): () {
-        switch (refundsToData.get(transactionID)) {
+        refundsToData:HashMap.HashMap<Text, Refunds>,transactionID:Text,userID:Principal,authorID:Principal,
+        refundAmount:Nat,refundReason:Text):(){
+        switch(refundsToData.get(transactionID)) {
             case (null) {
-            refundsToData.put(transactionID, {
+            refundsToData.put(transactionID,{
                 transactionID; // Transaction ID
                 userID;
-                authorID; // Project author ID
+                authorID; // Project party ID
                 refundAmount; // Refund amount
                 refundReason; // Refund reason
-                rejectRefundReason=""; // Reason for rejecting refund
+                rejectRefundReason=""; // Rejected refund reason
                 refundTime=0; // Refund time
                 refund = #Default; // Refund status
-                createTime = Time.now();
+                createTime =Time.now();
                 isActive = true;
             });
             };
             case (_) {};
-        };
+      };
     };
 
+
     // Update refund record status
-    public func setRefundsStatus(refundsToData: HashMap.HashMap<Text, Refunds>, transactionID: Text, rejectRefundReason: Text, refund: Types.Status): () {
+    public func setRefundsStatus(refundsToData:HashMap.HashMap<Text, Refunds>,transactionID:Text,rejectRefundReason:Text,refund:Types.Status):(){
         switch (refundsToData.get(transactionID)) { 
             case (null) {}; 
             case (?r) {
@@ -102,7 +104,7 @@ module {
                     case (#Failed) Time.now();
                     case (#Default) 0; 
                 };
-                refundsToData.put(transactionID, {r with rejectRefundReason; refund; refundTime});
+                refundsToData.put(transactionID,{r with rejectRefundReason;refund;refundTime});
             }; 
         };    
     };
